@@ -140,9 +140,11 @@ sudo smartctl --scan
 sudo smartctl -t short /dev/sg5
 sudo smartctl -t conveyance /dev/sg5
 sudo smartctl -t long /dev/sg5
-# One command if the disks are sg5-sg12 like in the output above
+
+# One command if the disks are sg5-sg12 like in the output of sg_map command above.
 # This doesn't work if diks is in JBOD mode, they need to be in RAID10.
 for i in {5..12}; do sudo smartctl -t conveyance -d sat /dev/sg"$i"; done
+
 # If using SAS disks, use option -d scsi
 ~~~
 * With SATA disk, you can check if self-test is over with command:
@@ -151,6 +153,9 @@ sudo smartctl -a -d sat /dev/sg11 | grep -A1 -m1 Self-test
 
 Self-test execution status:      ( 249) Self-test routine in progress...
                                         90% of test remaining.
+
+# Check all in one go:
+for i in {5..12}; do sudo smartctl -a -d sat /dev/sg"$i" | grep -A1 -m1 Self-test; done
 ~~~
 
 * Test badblocks
