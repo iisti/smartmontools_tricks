@@ -1,12 +1,18 @@
 # Testing disks with Ubuntu 16.04 and smartmontools
 
-* List of S.M.A.R.T. attributes and definition
-  * https://en.wikipedia.org/wiki/S.M.A.R.T.#Known_ATA_S.M.A.R.T._attributes
-* Instructions for testing with FreeNAS
-  * https://www.ixsystems.com/community/threads/hard-drive-burn-in-testing-discussion-thread.21451/
+SATA SSD vs SATA RAID10 speed test with ~10 year old (date now 19.3.2021) enterprise server hardware
 
-* Prepare Ubuntu 16.04 when rebooted with Live USB
-~~~
+ List of S.M.A.R.T. attributes and definition
+
+* <https://en.wikipedia.org/wiki/S.M.A.R.T.#Known_ATA_S.M.A.R.T._attributes>
+
+Instructions for testing with FreeNAS
+
+* <https://www.ixsystems.com/community/threads/hard-drive-burn-in-testing-discussion-thread.21451/>
+
+## Prepare Ubuntu 16.04 when rebooted with Live USB
+
+~~~sh
 # Set password for user ubuntu
 passwd
 sudo apt-get update
@@ -17,8 +23,9 @@ sudo apt-get install -y openssh-server tmux smartmontools sg3-utils
 sudo apt-get -y upgrade
 ~~~
 
-* Commands for listing devices
-~~~
+## Commands for listing devices
+
+~~~sh
 ls -la /dev/sg*
 sudo fdisk -l
 df -h
@@ -133,81 +140,87 @@ ubuntu@ubuntu:~$ sudo sg_map
 ~~~
 
 ## Disk tests
+
 * S.M.A.R.T
-~~~
-# Check the disk hardware
-sudo smartctl --scan
-sudo smartctl -t short /dev/sg5
-sudo smartctl -t conveyance /dev/sg5
-sudo smartctl -t long /dev/sg5
 
-# One command if the disks are sg5-sg12 like in the output of sg_map command above.
-# This doesn't work if diks is in JBOD mode, they need to be in RAID10.
-for i in {5..12}; do sudo smartctl -t conveyance -d sat /dev/sg"$i"; done
+  ~~~sh
+  # Check the disk hardware
+  sudo smartctl --scan
+  sudo smartctl -t short /dev/sg5
+  sudo smartctl -t conveyance /dev/sg5
+  sudo smartctl -t long /dev/sg5
 
-# If using SAS disks, use option -d scsi
-~~~
+  # One command if the disks are sg5-sg12 like in the output of sg_map command above.
+  # This doesn't work if diks is in JBOD mode, they need to be in RAID10.
+  for i in {5..12}; do sudo smartctl -t conveyance -d sat /dev/sg"$i"; done
+
+  # If using SAS disks, use option -d scsi
+  ~~~
+
 * With SATA disk, you can check if self-test is over with command:
-~~~
-sudo smartctl -a -d sat /dev/sg11 | grep -A1 -m1 Self-test
 
-Self-test execution status:      ( 249) Self-test routine in progress...
-                                        90% of test remaining.
+  ~~~sh
+  sudo smartctl -a -d sat /dev/sg11 | grep -A1 -m1 Self-test
 
-# Check all in one go:
-for i in {5..12}; do sudo smartctl -a -d sat /dev/sg"$i" | grep -A1 -m1 Self-test; done
-~~~
+  Self-test execution status:      ( 249) Self-test routine in progress...
+                                          90% of test remaining.
+
+  # Check all in one go:
+  for i in {5..12}; do sudo smartctl -a -d sat /dev/sg"$i" | grep -A1 -m1 Self-test; done
+  ~~~
 
 * Test badblocks
   * The disks need to be in JBOD mode. RAID10 will not work.
   * After badblocks run smartctl tests again.
   * Use tmux for creating many sessions. You can split screen with `ctrl+b then "`
   * This will erase any data on the disk unrecovable!
-~~~
-tmux
-disk_sd="sd5"; sudo badblocks -ws /dev/$disk_sd > /tmp/badblocks_$disk_sd
-# To detach:
-# ctrl+b then d
-# To attach back:
-tmux attach
-~~~
+
+  ~~~sh
+  tmux
+  disk_sd="sd5"; sudo badblocks -ws /dev/$disk_sd > /tmp/badblocks_$disk_sd
+  # To detach:
+  # ctrl+b then d
+  # To attach back:
+  tmux attach
+  ~~~
 
 ## Analyzing output information
 
 * Example of SMART attribute output command:
   * smartctl -a -d sat /dev/sg5
-~~~
-SMART Attributes Data Structure revision number: 16
-Vendor Specific SMART Attributes with Thresholds:
-ID# ATTRIBUTE_NAME          FLAG     VALUE WORST THRESH TYPE      UPDATED  WHEN_FAILED RAW_VALUE
-  1 Raw_Read_Error_Rate     0x000f   200   200   051    Pre-fail  Always       -       0
-  3 Spin_Up_Time            0x0003   199   198   021    Pre-fail  Always       -       3033
-  4 Start_Stop_Count        0x0032   100   100   000    Old_age   Always       -       52
-  5 Reallocated_Sector_Ct   0x0033   200   200   140    Pre-fail  Always       -       0
-  7 Seek_Error_Rate         0x000e   200   200   000    Old_age   Always       -       0
-  9 Power_On_Hours          0x0032   001   001   000    Old_age   Always       -       77571
- 10 Spin_Retry_Count        0x0012   100   253   000    Old_age   Always       -       0
- 11 Calibration_Retry_Count 0x0012   100   253   000    Old_age   Always       -       0
- 12 Power_Cycle_Count       0x0032   100   100   000    Old_age   Always       -       52
-192 Power-Off_Retract_Count 0x0032   200   200   000    Old_age   Always       -       50
-193 Load_Cycle_Count        0x0032   200   200   000    Old_age   Always       -       52
-194 Temperature_Celsius     0x0022   117   102   000    Old_age   Always       -       30
-196 Reallocated_Event_Count 0x0032   200   200   000    Old_age   Always       -       0
-197 Current_Pending_Sector  0x0012   200   200   000    Old_age   Always       -       0
-198 Offline_Uncorrectable   0x0010   200   200   000    Old_age   Offline      -       0
-200 Multi_Zone_Error_Rate   0x0008   200   200   000    Old_age   Offline      -       0
-~~~
+
+  ~~~sh
+  SMART Attributes Data Structure revision number: 16
+  Vendor Specific SMART Attributes with Thresholds:
+  ID# ATTRIBUTE_NAME          FLAG     VALUE WORST THRESH TYPE      UPDATED  WHEN_FAILED RAW_VALUE
+    1 Raw_Read_Error_Rate     0x000f   200   200   051    Pre-fail  Always       -       0
+    3 Spin_Up_Time            0x0003   199   198   021    Pre-fail  Always       -       3033
+    4 Start_Stop_Count        0x0032   100   100   000    Old_age   Always       -       52
+    5 Reallocated_Sector_Ct   0x0033   200   200   140    Pre-fail  Always       -       0
+    7 Seek_Error_Rate         0x000e   200   200   000    Old_age   Always       -       0
+    9 Power_On_Hours          0x0032   001   001   000    Old_age   Always       -       77571
+  10 Spin_Retry_Count        0x0012   100   253   000    Old_age   Always       -       0
+  11 Calibration_Retry_Count 0x0012   100   253   000    Old_age   Always       -       0
+  12 Power_Cycle_Count       0x0032   100   100   000    Old_age   Always       -       52
+  192 Power-Off_Retract_Count 0x0032   200   200   000    Old_age   Always       -       50
+  193 Load_Cycle_Count        0x0032   200   200   000    Old_age   Always       -       52
+  194 Temperature_Celsius     0x0022   117   102   000    Old_age   Always       -       30
+  196 Reallocated_Event_Count 0x0032   200   200   000    Old_age   Always       -       0
+  197 Current_Pending_Sector  0x0012   200   200   000    Old_age   Always       -       0
+  198 Offline_Uncorrectable   0x0010   200   200   000    Old_age   Offline      -       0
+  200 Multi_Zone_Error_Rate   0x0008   200   200   000    Old_age   Offline      -       0
+  ~~~
 
 * With SAS disks check the read (and write) **Total Uncorrected Errors** and **Elements in grown defect list**. If non zero, the disk is breaking.
-  * Source: https://www.ixsystems.com/community/threads/understanding-smartctl-sas.54754/
+  * Source: <https://www.ixsystems.com/community/threads/understanding-smartctl-sas.54754/>
 
-~~~
-grep -e Power_On_Hours smartctl_a_sg*
-smartctl_a_sg10:  9 Power_On_Hours          0x0032   099   099   000    Old_age   Always       -       972
-smartctl_a_sg5:  9 Power_On_Hours          0x0032   059   059   000    Old_age   Always       -       30301
-smartctl_a_sg6:  9 Power_On_Hours          0x0012   089   089   000    Old_age   Always       -       82228
-smartctl_a_sg9:  9 Power_On_Hours          0x0032   032   032   000    Old_age   Always       -       59597
-~~~
+  ~~~sh
+  grep -e Power_On_Hours smartctl_a_sg*
+  smartctl_a_sg10:  9 Power_On_Hours          0x0032   099   099   000    Old_age   Always       -       972
+  smartctl_a_sg5:  9 Power_On_Hours          0x0032   059   059   000    Old_age   Always       -       30301
+  smartctl_a_sg6:  9 Power_On_Hours          0x0012   089   089   000    Old_age   Always       -       82228
+  smartctl_a_sg9:  9 Power_On_Hours          0x0032   032   032   000    Old_age   Always       -       59597
+  ~~~
 
 * For loop to get all disks **smartctl -a output**
   * `for disk in {4..11}; do sudo smartctl -a -d sat /dev/sg$disk > /tmp/smartctl_a_sg$disk; done`
@@ -218,70 +231,76 @@ smartctl_a_sg9:  9 Power_On_Hours          0x0032   032   032   000    Old_age  
 * Script for analyzing **smartctl -a** output of SATA disks
   * This doesn't work with SAS disks
   * Change /tmp/smartctl_a_sg* if needed.
-~~~
-files=/tmp/smartctl_a_sg*; \
-output_smartctl=($(grep \
-    -e Reallocated_Sector_Ct \
-    -e Spin_Retry_Count \
-    -e Reallocated_Event_Count \
-    -e Current_Pending_Sector \
-    -e Offline_Uncorrectable \
-    $files \
-    | sed 's/^smartctl_a_//' \
-    | sed 's/: */:/' \
-    | tr -s ' ' \
-    | cut -d' ' -f1,10 \
-    | sed 's/ /;/')); \
-echo "Printing all disks:"; \
-echo "Explanation:"; \
-echo "disk;error_ID;number_of_errors"; \
-printf '%s\n' ${output_smartctl[@]}; \
-for i in "${output_smartctl[@]}"; do
-    #printf $i | cut -d';' -f2
-    if [ $(printf $i | cut -d';' -f2) != 0 ]
-    then
-        echo "Faulty disk: $i"
-    fi
-done <<< $(printf '%s\n' $output_smartctl); \
-echo "If there's no line starting 'Faulty disk:', probably all disks are fine."
-~~~
+
+  ~~~sh
+  files=/tmp/smartctl_a_sg*; \
+  output_smartctl=($(grep \
+      -e Reallocated_Sector_Ct \
+      -e Spin_Retry_Count \
+      -e Reallocated_Event_Count \
+      -e Current_Pending_Sector \
+      -e Offline_Uncorrectable \
+      $files \
+      | sed 's/^smartctl_a_//' \
+      | sed 's/: */:/' \
+      | tr -s ' ' \
+      | cut -d' ' -f1,10 \
+      | sed 's/ /;/')); \
+  echo "Printing all disks:"; \
+  echo "Explanation:"; \
+  echo "disk;error_ID;number_of_errors"; \
+  printf '%s\n' ${output_smartctl[@]}; \
+  for i in "${output_smartctl[@]}"; do
+      #printf $i | cut -d';' -f2
+      if [ $(printf $i | cut -d';' -f2) != 0 ]
+      then
+          echo "Faulty disk: $i"
+      fi
+  done <<< $(printf '%s\n' $output_smartctl); \
+  echo "If there's no line starting 'Faulty disk:', probably all disks are fine."
+  ~~~
 
 * Example output
   * disk;error_ID;number_of_errors
-~~~ 
-Printing all disks:
-sg10:5;0
-sg10:10;0
-sg10:196;0
-sg10:197;0
-sg10:198;0
-sg5:5;0
-sg5:10;0
-sg5:196;0
-sg5:197;0
-sg5:198;0
-sg6:5;0
-sg6:10;0
-sg6:196;0
-sg6:197;0
-sg6:198;0
-sg9:5;14
-sg9:10;0
-sg9:197;0
-sg9:198;1
-Faulty disk: sg9:5;14
-Faulty disk: sg9:198;1
-~~~
+
+  ~~~sh
+  Printing all disks:
+  sg10:5;0
+  sg10:10;0
+  sg10:196;0
+  sg10:197;0
+  sg10:198;0
+  sg5:5;0
+  sg5:10;0
+  sg5:196;0
+  sg5:197;0
+  sg5:198;0
+  sg6:5;0
+  sg6:10;0
+  sg6:196;0
+  sg6:197;0
+  sg6:198;0
+  sg9:5;14
+  sg9:10;0
+  sg9:197;0
+  sg9:198;1
+  Faulty disk: sg9:5;14
+  Faulty disk: sg9:198;1
+  ~~~
 
 ## Test USB disk
+
 * List disks with `sudo fdisk -l`
 * Start test `sudo smartctl -t short /dev/sdb`
 
-# Testing disk write speed with Ubuntu 16.04 Live USB
+## Testing disk write speed with Ubuntu 16.04 Live USB
+
 * In this test there are 8 disks in RAID10 with Adaptec 5805 controller.
-* Main source of info: https://www.cyberciti.biz/faq/howto-linux-unix-test-disk-performance-with-dd-command/
-## Make partition for the new disk
-~~~
+* Main source of info: <https://www.cyberciti.biz/faq/howto-linux-unix-test-disk-performance-with-dd-command/>
+
+### Make partition for the new disk
+
+~~~sh
 ubuntu@ubuntu:~$ sudo parted /dev/sdb
 GNU Parted 3.2
 Using /dev/sdb
@@ -315,8 +334,10 @@ Information: You may need to update /etc/fstab.
 ubuntu@ubuntu:~$ ls /dev/sd*
 /dev/sda  /dev/sdb  /dev/sdb1  /dev/sdc  /dev/sdc1
 ~~~
-## Format the disk
-~~~
+
+### Format the disk
+
+~~~sh
 ubuntu@ubuntu:~$ sudo mkfs.ext4 /dev/sdb1
 mke2fs 1.42.13 (17-May-2015)
 Creating filesystem with 976223744 4k blocks and 244056064 inodes
@@ -331,14 +352,19 @@ Writing inode tables: done
 Creating journal (32768 blocks): done
 Writing superblocks and filesystem accounting information: done
 ~~~
-## Create mount point and mount
-~~~
+
+### Create mount point and mount
+
+~~~sh
 ubuntu@ubuntu:~$ sudo mkdir /mnt/sdb1
 ubuntu@ubuntu:~$ sudo mount /dev/sdb1  /mnt/sdb1/
 ~~~
-## Test speed of RAID10 with SATA 8x WD RED 1TB HDDs, no caches
+
+### Test speed of RAID10 with SATA 8x WD RED 1TB HDDs, no caches
+
 * All caches are disabled as the battery unit is super old.
-~~~
+
+~~~sh
 # The first test is fast
 ubuntu@ubuntu:~$ sudo dd if=/dev/zero of=/mnt/sdb1/somefile bs=1M count=4096
 4096+0 records in
@@ -403,11 +429,11 @@ ubuntu@ubuntu:~$ sudo dd if=/dev/zero of=/mnt/sdb1/test2.img bs=512 count=1000 o
 1000+0 records in
 1000+0 records out
 512000 bytes (512 kB, 500 KiB) copied, 2.07194 s, 247 kB/s
-
 ~~~
 
-## Test speed of single SSD in same hardware
-~~~
+### Test speed of single SSD in same hardware
+
+~~~sh
 # Small file written multiple times
 ubuntu@ubuntu:~$ sudo dd if=/dev/zero of=/mnt/sda1/somefile bs=1M count=4096
 4096+0 records in
@@ -479,4 +505,3 @@ ubuntu@ubuntu:~$ sudo dd if=/dev/zero of=/mnt/sda1/test2.img bs=512 count=1000 o
 1000+0 records out
 512000 bytes (512 kB, 500 KiB) copied, 0.810221 s, 632 kB/s
 ~~~
-
